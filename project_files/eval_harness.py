@@ -36,12 +36,33 @@ def load_corpus(path: str = config.CORPUS_PATH) -> list[dict]:
     """
     Load wilderness query corpus.
     Format: [{"query": ..., "category": ..., "urgency": "normal"|"high"}, ...]
-    Falls back to a minimal 12-query test set if corpus is missing.
+    Falls back to a minimal 12-query test set if corpus is missing, empty,
+    or invalid.
     """
     p = Path(path)
     if p.exists():
-        with open(p, "r", encoding="utf-8") as f:
-            corpus = json.load(f)
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                corpus = json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning(
+                "Corpus at %s is not valid JSON (%s) — using built-in test set",
+                p,
+                e,
+            )
+            return _BUILTIN_TEST_CORPUS
+
+        if not isinstance(corpus, list) or not all(isinstance(item, dict) for item in corpus):
+            logger.warning(
+                "Corpus at %s has unexpected structure (expected list[dict]) — using built-in test set",
+                p,
+            )
+            return _BUILTIN_TEST_CORPUS
+
+        if len(corpus) == 0:
+            logger.warning("Corpus at %s is empty — using built-in test set", p)
+            return _BUILTIN_TEST_CORPUS
+
         logger.info("Corpus loaded: %d queries from %s", len(corpus), p)
         return corpus
 
