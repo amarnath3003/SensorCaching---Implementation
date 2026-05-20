@@ -1,43 +1,96 @@
-from dataclasses import dataclass
+"""
+sensor_provider.py — SensorState dataclass + abstract SensorProvider
+Shared by RPi, Android, and Simulator implementations.
+"""
+
+from __future__ import annotations
+from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
+from typing import Optional
+import time
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class SensorState:
-    lat: float          # degrees
-    lon: float          # degrees
-    altitude_m: float   # metres
-    pressure_hpa: float # hPa — real or API-sourced
-    temp_c: float       # °C — real or battery proxy
-    battery_pct: float  # 0.0–1.0
-    source_flags: dict  # e.g. {"pressure": "api", "temp": "battery_proxy"}
+    """
+    Multi-dimensional sensor vector S(t) — Eq. (1) in paper.
+    Matches exactly:  S(t) = [sGPS, sALT, sBARO, sTEMP, sBAT]
+    """
+    lat:            float           # degrees
+    lon:            float           # degrees
+    altitude_m:     float           # metres  (GPS-derived or baro formula)
+    pressure_hpa:   float           # hPa     (real sensor or API-sourced)
+    temp_c:         float           # °C      (real or battery-temp proxy)
+    battery_pct:    float           # 0.0 – 1.0
+    timestamp:      float = field(default_factory=time.time)  # Unix epoch
+    source_flags:   dict  = field(default_factory=dict)
+    # source_flags keys: "gps", "altitude", "pressure", "temp", "battery"
+    # source_flags values: "real" | "gps_derived" | "api" | "battery_proxy"
+    #                      | "baro_formula" | "simulated"
+
+    def copy(self) -> "SensorState":
+        import copy
+        return copy.deepcopy(self)
+
+    def __str__(self) -> str:
+        return (
+            f"SensorState(lat={self.lat:.5f}, lon={self.lon:.5f}, "
+            f"alt={self.altitude_m:.1f}m, baro={self.pressure_hpa:.2f}hPa, "
+            f"temp={self.temp_c:.1f}°C, bat={self.battery_pct*100:.0f}%, "
+            f"src={self.source_flags})"
+        )
+
 
 class SensorProvider(ABC):
+    """Abstract base — implement get_state() for each platform."""
+
     @abstractmethod
     def get_state(self) -> SensorState:
-        pass
+        """Return the current physical sensor state."""
+        ...
 
-class RPiSensorProvider(SensorProvider):
-    def __init__(self):
-        import smbus2
-        from gps3 import gps3
-        self.bus = smbus2.SMBus(1)
-        self.BME280_ADDR = 0x76
-        self._init_bme280()
-        self.gps_socket = gps3.GPSDSocket()
-        self.gps_socket.connect()
-        self.gps_socket.watch()
-        self.data_stream = gps3.DataStream()
+    def is_healthy(self) -> bool:
+        """
+        Optional liveness check. Override in hardware providers to test
+        I2C bus / GPS socket / Termux-API availability before starting
+        the CVW monitor.
+        """
+        try:
+            self.get_state()
+            return True
+        except Exception as exc:
+            logger.warning("SensorProvider health check failed: %s", exc)
+            return False
 
-    def get_state(self) -> SensorState:
-        # Read BME280 (pressure + temp)
-        pressure, temp = self._read_bme280()
-        # Read GPS
-        lat, lon, alt = self._read_gps()
-        return SensorState(
-            lat=lat, lon=lon, altitude_m=alt,
-            pressure_hpa=pressure, temp_c=temp,
-            battery_pct=self._simulate_battery(),
-            source_flags={"pressure": "bme280", "temp": "bme280",
-                          "gps": "ublox", "battery": "simulated"}
+
+def get_provider(platform: Optional[str] = None) -> SensorProvider:
+    """
+    Factory: returns the right SensorProvider for the running platform.
+    Auto-detects when platform=None; override with PLATFORM env var
+    or explicit argument.
+    """
+    from config import PLATFORM as CFG_PLATFORM
+    p = (platform or CFG_PLATFORM).lower()
+
+    if p == "rpi":
+        from sensor_rpi import RPiSensorProvider
+        logger.info("Using RPi5 hardware sensor provider")
+        return RPiSensorProvider()
+
+    elif p == "android":
+        from sensor_android import AndroidSensorProvider
+        logger.info("Using Android/Termux sensor provider")
+        return AndroidSensorProvider()
+
+    elif p == "sim":
+        from sensor_simulator import SimulatedSensorProvider
+        logger.info("Using simulated sensor provider")
+        return SimulatedSensorProvider()
+
+    else:
+        raise ValueError(
+            f"Unknown platform '{p}'. Set PLATFORM=rpi|android|sim"
         )
-    # ... BME280 I2C read + GPS NMEA parse methods
