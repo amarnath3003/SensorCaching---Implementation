@@ -39,3 +39,4 @@ project_files/results/*.txt
 # Local model files (downloaded artifacts)
 models/
 project_files/models/
+project_files/__pycache__/eval_harness.cpython-313.pyc

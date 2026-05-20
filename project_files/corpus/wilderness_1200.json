@@ -1,1 +1,16 @@
-[]
+[
+	{"query": "What is the safest descent route from this ridge?", "category": "navigation", "urgency": "normal"},
+	{"query": "Which way is the safest way down from this ridge?", "category": "navigation", "urgency": "normal"},
+
+	{"query": "What is the safest descent route from this ridge?", "category": "navigation", "urgency": "normal"},
+	{"query": "What is the safest descent route from this ridge?", "category": "navigation", "urgency": "normal"},
+
+	{"query": "How do I treat altitude sickness symptoms in the backcountry?", "category": "first_aid", "urgency": "high"},
+	{"query": "How do I treat altitude sickness symptoms in the backcountry?", "category": "first_aid", "urgency": "high"},
+
+	{"query": "If the barometer is falling quickly, should I expect a storm soon?", "category": "weather", "urgency": "normal"},
+	{"query": "If the barometer is falling quickly, should I expect a storm soon?", "category": "weather", "urgency": "normal"},
+
+	{"query": "How do I find drinkable water in the mountains?", "category": "resource_mgmt", "urgency": "normal"},
+	{"query": "How do I find drinkable water in the mountains?", "category": "resource_mgmt", "urgency": "normal"}
+]
