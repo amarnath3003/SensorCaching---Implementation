@@ -40,3 +40,5 @@ project_files/results/*.txt
 models/
 project_files/models/
 project_files/__pycache__/eval_harness.cpython-313.pyc
+project_files/__pycache__/
+
