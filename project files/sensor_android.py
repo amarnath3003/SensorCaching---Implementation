@@ -1,6 +1,3 @@
-# sensor_android.py
-# Android: Location API + Open-Meteo fallback
-
 """
 sensor_android.py — Android sensor provider via Termux:API
 Tested on Vivo V27 (Android 13, Funtouch OS 13)
